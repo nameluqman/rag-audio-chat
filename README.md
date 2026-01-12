@@ -66,6 +66,8 @@ GOOSEAI_API_KEY=your_gooseai_api_key_here
 PORT=5000
 ```
 
+**Important**: Never commit your `.env` file to version control. API keys should be kept secure and private.
+
 ### 2. Frontend Setup
 
 ```bash
