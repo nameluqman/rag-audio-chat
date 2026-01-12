@@ -1,70 +1,268 @@
-# Getting Started with Create React App
+# RAG Audio Chat
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A complete Text + Audio RAG (Retrieval Augmented Generation) system built with React frontend and Node.js backend, powered by GooseAI.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Text Q&A**: Ask questions via text input and get contextual answers
+- **Audio Q&A**: Record audio questions, get transcribed, answered, and receive audio responses
+- **RAG Pipeline**: Advanced retrieval-augmented generation with vector similarity search
+- **Modern UI**: Clean, responsive chat interface with real-time interactions
+- **Modular Architecture**: Well-organized backend with separate services for different functionalities
 
-### `npm start`
+## Architecture
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```
+rag-audio-chat/
+├── frontend/              # React frontend application
+│   ├── src/
+│   │   ├── App.js        # Main chat interface
+│   │   ├── App.css       # Modern chat styling
+│   │   └── ...
+│   └── package.json
+├── backend/               # Node.js Express backend
+│   ├── server.js         # Express server setup
+│   ├── package.json
+│   ├── routes/           # API route handlers
+│   │   ├── askText.js    # Text question endpoint
+│   │   └── askAudio.js   # Audio question endpoint
+│   ├── services/         # External service integrations
+│   │   ├── gooseai.js    # GooseAI API client
+│   │   ├── stt.js        # Speech-to-Text service
+│   │   └── tts.js        # Text-to-Speech service
+│   ├── rag/              # RAG pipeline components
+│   │   ├── embed.js      # Embedding generation
+│   │   ├── ingest.js     # Document ingestion
+│   │   └── search.js     # Vector similarity search
+│   ├── data/             # Document storage
+│   │   ├── sample1.txt   # Sample AI/ML content
+│   │   └── sample2.txt   # Sample web dev content
+│   └── .env.example      # Environment variables template
+└── README.md
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Prerequisites
 
-### `npm test`
+- Node.js (v14 or higher)
+- npm or yarn
+- GooseAI API key
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Installation & Setup
 
-### `npm run build`
+### 1. Backend Setup
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+# Navigate to backend directory
+cd backend
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# Install dependencies
+npm install
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+# Create environment file
+cp .env.example .env
 
-### `npm run eject`
+# Add your GooseAI API key to .env
+GOOSEAI_API_KEY=your_gooseai_api_key_here
+PORT=5000
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### 2. Frontend Setup
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+# Navigate to project root
+cd ..
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# Install frontend dependencies
+npm install
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Running the Application
 
-## Learn More
+### Start the Backend
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+cd backend
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+# Development mode (with auto-reload)
+npm run dev
 
-### Code Splitting
+# Or production mode
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+The backend will start on `http://localhost:5000`
 
-### Analyzing the Bundle Size
+### Start the Frontend
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+In a new terminal:
 
-### Making a Progressive Web App
+```bash
+# From project root
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+The frontend will start on `http://localhost:3000`
 
-### Advanced Configuration
+## Usage
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### Text Questions
 
-### Deployment
+1. Type your question in the text input field
+2. Click "Send" or press Enter
+3. The system will:
+   - Generate embeddings for your question
+   - Search for relevant context in the documents
+   - Generate an answer using the context
+   - Display the answer with source information
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### Audio Questions
 
-### `npm run build` fails to minify
+1. Click and hold the "🎤 Hold to record" button
+2. Speak your question
+3. Release the button to stop recording
+4. The system will:
+   - Transcribe your audio to text
+   - Run the same RAG pipeline as text questions
+   - Convert the answer to audio
+   - Display the transcribed question and play the audio answer
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## API Endpoints
+
+### Health Check
+- `GET /health` - Check if server is running
+
+### Text Question
+- `POST /ask-text` - Ask a text question
+  ```json
+  {
+    "question": "What is machine learning?"
+  }
+  ```
+
+### Audio Question
+- `POST /ask-audio` - Ask an audio question
+  - Content-Type: `multipart/form-data`
+  - Field: `audio` (audio file)
+
+## Sample Documents
+
+The backend comes with two sample documents in `backend/data/`:
+
+1. **sample1.txt**: Content about Artificial Intelligence and Machine Learning
+2. **sample2.txt**: Content about Web Development Technologies
+
+You can add more `.txt` files to this directory, and they will be automatically ingested when the server starts.
+
+## Services
+
+### GooseAI Integration
+- **Embeddings**: Uses text-embedding-ada-002 model
+- **Chat**: Uses gpt-3.5-turbo for generating responses
+- **Rate Limiting**: Implements batch processing and delays
+
+### Speech-to-Text (Mock)
+- Currently returns placeholder text
+- Easy to replace with Whisper or other STT services
+- Modular design for simple integration
+
+### Text-to-Speech (Mock)
+- Currently returns placeholder audio
+- Easy to replace with real TTS services
+- Returns base64-encoded audio for frontend playback
+
+## RAG Pipeline
+
+1. **Document Ingestion**:
+   - Text files are chunked into 500-word segments with 50-word overlap
+   - Each chunk is embedded using GooseAI
+   - Embeddings stored in memory (upgrade to vector DB for production)
+
+2. **Query Processing**:
+   - User query is embedded
+   - Cosine similarity search finds top 3 most relevant chunks
+   - Context is built from relevant chunks
+
+3. **Response Generation**:
+   - Context + question sent to LLM
+   - Response includes answer text and source information
+
+## Configuration
+
+### Environment Variables
+
+Backend `.env` file:
+```
+GOOSEAI_API_KEY=your_gooseai_api_key_here
+PORT=5000
+```
+
+Frontend (optional):
+```
+REACT_APP_API_URL=http://localhost:5000
+```
+
+## Development Notes
+
+### Current Limitations
+- Vector storage is in-memory (restart server to reindex)
+- STT and TTS are mocked implementations
+- No authentication or rate limiting
+- Single-user design
+
+### Production Improvements
+- Replace in-memory storage with vector database (Pinecone, Weaviate)
+- Implement real STT/TTS services
+- Add authentication and user management
+- Add rate limiting and caching
+- Implement proper error handling and logging
+- Add monitoring and analytics
+
+## Testing the System
+
+### Test Text Queries
+Try these sample questions:
+- "What is artificial intelligence?"
+- "How does machine learning work?"
+- "What are the main types of machine learning?"
+- "What is React used for in web development?"
+- "What is responsive web design?"
+
+### Test Audio Queries
+- Record any of the above questions as audio
+- The system will transcribe and answer them
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Backend won't start**: Check if GooseAI API key is set correctly
+2. **Frontend can't connect**: Ensure backend is running on port 5000
+3. **Audio recording not working**: Check browser microphone permissions
+4. **No documents found**: Ensure .txt files are in `backend/data/` directory
+
+### Debug Mode
+
+Enable debug logging by setting:
+```bash
+DEBUG=* npm run dev
+```
+
+## License
+
+MIT License - feel free to use this project for learning and development.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## Support
+
+For issues and questions:
+1. Check the troubleshooting section
+2. Review the code comments
+3. Check the browser console and server logs
+4. Ensure all environment variables are set correctly
