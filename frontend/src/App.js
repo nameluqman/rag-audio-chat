@@ -42,13 +42,23 @@ function ChatBox({ messages }) {
 // AudioRecorder component for recording audio
 function AudioRecorder({ onRecordingComplete, isRecording }) {
   const [isRecordingLocal, setIsRecordingLocal] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const timerRef = useRef(null);
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+      });
       
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -60,18 +70,43 @@ function AudioRecorder({ onRecordingComplete, isRecording }) {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/wav' });
+        const audioBlob = new Blob(chunksRef.current, { 
+          type: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4' 
+        });
         onRecordingComplete(audioBlob);
         
         // Stop all tracks
         stream.getTracks().forEach(track => track.stop());
+        
+        // Reset timer
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        setRecordingTime(0);
       };
 
       mediaRecorder.start();
       setIsRecordingLocal(true);
+      
+      // Start timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      
     } catch (error) {
       console.error('Error starting recording:', error);
-      alert('Could not access microphone. Please check permissions.');
+      let errorMessage = 'Could not access microphone. Please check permissions.';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Microphone access denied. Please allow microphone access in your browser settings.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Audio recording is not supported in this browser.';
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -82,17 +117,50 @@ function AudioRecorder({ onRecordingComplete, isRecording }) {
     }
   };
 
+  // Format recording time
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <button
-      className={`record-button ${isRecordingLocal ? 'recording' : ''}`}
-      onMouseDown={startRecording}
-      onMouseUp={stopRecording}
-      onTouchStart={startRecording}
-      onTouchEnd={stopRecording}
-      disabled={isRecording}
-    >
-      {isRecordingLocal ? '🔴 Recording... (Release to stop)' : '🎤 Hold to record'}
-    </button>
+    <div className="audio-recorder-container">
+      <button
+        className={`record-button ${isRecordingLocal ? 'recording' : ''}`}
+        onMouseDown={startRecording}
+        onMouseUp={stopRecording}
+        onMouseLeave={stopRecording}
+        onTouchStart={startRecording}
+        onTouchEnd={stopRecording}
+        disabled={isRecording}
+      >
+        <span className="record-button-content">
+          {isRecordingLocal ? (
+            <>
+              <span className="recording-indicator">🔴</span>
+              <span>Recording {formatTime(recordingTime)}</span>
+              <span className="release-hint">(Release to stop)</span>
+            </>
+          ) : (
+            <>
+              <span>🎤</span>
+              <span>Hold to record</span>
+            </>
+          )}
+        </span>
+      </button>
+      
+      {isRecordingLocal && (
+        <div className="recording-waveform">
+          <div className="wave"></div>
+          <div className="wave"></div>
+          <div className="wave"></div>
+          <div className="wave"></div>
+          <div className="wave"></div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -100,10 +168,35 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const messagesEndRef = useRef(null);
 
-  // Backend API URL
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  // Backend API URL - supports both development and production
+  const API_URL = process.env.REACT_APP_API_URL || 
+    (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 
+     `https://${window.location.hostname}`);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Auto-resize textarea for better mobile experience
+  const handleTextareaChange = (e) => {
+    setInputText(e.target.value);
+    // Auto-resize textarea
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+  };
 
   // Send text question to backend
   const sendTextQuestion = async () => {
@@ -128,11 +221,18 @@ function App() {
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error('Error sending text question:', error);
-      const errorMessage = {
+      
+      let errorMessage = 'Sorry, I encountered an error processing your question. Please try again.';
+      
+      if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+        errorMessage = 'Unable to connect to the backend server. Please ensure the backend is running and accessible.';
+      }
+      
+      const errorBotMessage = {
         type: 'bot',
-        content: 'Sorry, I encountered an error processing your question. Please try again.'
+        content: errorMessage
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorBotMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -169,11 +269,18 @@ function App() {
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error('Error sending audio question:', error);
-      const errorMessage = {
+      
+      let errorMessage = 'Sorry, I encountered an error processing your audio. Please try again.';
+      
+      if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+        errorMessage = 'Unable to connect to the backend server. Please ensure the backend is running and accessible.';
+      }
+      
+      const errorBotMessage = {
         type: 'bot',
-        content: 'Sorry, I encountered an error processing your audio. Please try again.'
+        content: errorMessage
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorBotMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -182,7 +289,19 @@ function App() {
   // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!isOnline) {
+      alert('You are currently offline. Please check your internet connection.');
+      return;
+    }
     sendTextQuestion();
+  };
+
+  // Handle keyboard shortcuts
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
   };
 
   return (
@@ -190,6 +309,11 @@ function App() {
       <header className="App-header">
         <h1>RAG Audio Chat</h1>
         <p>Ask questions via text or voice</p>
+        {!isOnline && (
+          <div className="offline-indicator">
+            <span>🔴 Offline</span>
+          </div>
+        )}
       </header>
       
       <main className="chat-container">
@@ -208,17 +332,19 @@ function App() {
         
         <div className="input-container">
           <form onSubmit={handleSubmit} className="text-input-form">
-            <input
-              type="text"
+            <textarea
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={handleTextareaChange}
+              onKeyDown={handleKeyDown}
               placeholder="Type your question here..."
-              disabled={isLoading}
+              disabled={isLoading || !isOnline}
               className="text-input"
+              rows={1}
+              style={{ resize: 'none', overflow: 'hidden' }}
             />
             <button 
               type="submit" 
-              disabled={isLoading || !inputText.trim()}
+              disabled={isLoading || !isOnline || !inputText.trim()}
               className="send-button"
             >
               Send
@@ -228,7 +354,7 @@ function App() {
           <div className="audio-input-container">
             <AudioRecorder 
               onRecordingComplete={sendAudioQuestion}
-              isRecording={isLoading}
+              isRecording={isLoading || !isOnline}
             />
           </div>
         </div>
